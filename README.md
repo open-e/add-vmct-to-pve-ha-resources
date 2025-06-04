@@ -7,6 +7,15 @@ the device is available.
 
 ## Usage
 
-Run `add-vmct-to-pve-ha-resources.sh` on a cluster node with sufficient privileges.
-The script will create the HA group if it does not already exist and add every
-eligible VM and CT to it.
+Run the following commands on a Proxmox VE host to download and execute the helper script:
+
+```bash
+wget https://raw.githubusercontent.com/open-e/add-vmct-to-pve-ha-resources/main/add-vmct-to-pve-ha-resources.sh \
+    -O /usr/local/sbin/add-vmct-to-pve-ha-resources; \
+chmod +x /usr/local/sbin/add-vmct-to-pve-ha-resources; \
+add-vmct-to-pve-ha-resources
+```
+
+When executed, the script will create the HA group if it does not already exist
+and then add every eligible VM and CT to it. VMs using passthrough devices are
+skipped automatically.

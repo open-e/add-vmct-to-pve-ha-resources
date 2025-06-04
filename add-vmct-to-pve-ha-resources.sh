@@ -10,11 +10,11 @@ GROUP_NODES="pve1,pve2"
 # ---------------------------------------------------------------------------
 
 # ---- Function: get_vms_with_hostpci ---------------------------------------
-# Scan every VM configuration file under /etc/pve/nodes/*/qemu-server for
-# occurrences of a "hostpci" directive. Each config that includes this option
-# belongs to a VM using PCI passthrough and should be skipped from automatic
-# HA management. The VMID is parsed from the filename and all found IDs are
-# emitted once in sorted numerical order.
+# Search each VM configuration under /etc/pve/nodes/*/qemu-server for lines
+# containing the "hostpci" directive. Any config with that option belongs to a
+# VM that uses PCI passthrough and should not be automatically managed by HA.
+# The function extracts the numeric VMID from every matching filename and
+# returns a sorted list of unique IDs.
 get_vms_with_hostpci() {
   grep -Rl hostpci /etc/pve/nodes/*/qemu-server/*.conf 2>/dev/null | \
     sed -E 's#.*/([0-9]+)\.conf#\1#' | sort -u
@@ -38,6 +38,11 @@ fi
 
 # 3) Build an array of VMIDs that have hostpci devices
 readarray -t HOSTPCI_VMS < <(get_vms_with_hostpci)
+
+echo "This script will add all VMs and CTs to the HA group '$GROUP'"
+echo "on nodes: $GROUP_NODES. VMs using PCI passthrough will be skipped."
+read -n 1 -s -r -p "Press any key to continue or Ctrl-C to exit" _
+echo
 
 # 4) Loop over every VM/CT in the cluster and add to HA if not using hostpci
 pvesh get /cluster/resources --type vm --output-format=json | \
@@ -69,3 +74,4 @@ pvesh get /cluster/resources --type vm --output-format=json | \
       ha-manager add "$sid" --state started --group "$GROUP" \
         --comment "HA ${VMID} on $GROUP_NODES"
   done
+

@@ -9,12 +9,20 @@ GROUP="powernodes"
 GROUP_NODES="pve1,pve2"
 # ---------------------------------------------------------------------------
 
-# ---- Function: get_vms_with_hostpci ---------------------------------------
-# Search each VM configuration under /etc/pve/nodes/*/qemu-server for lines
-# containing the "hostpci" directive. Any config with that option belongs to a
-# VM that uses PCI passthrough and should not be automatically managed by HA.
-# The function extracts the numeric VMID from every matching filename and
-# returns a sorted list of unique IDs.
+# ---- Function: get_groups --------------------------------------------------
+# Retrieve all existing HA group names by parsing the output of 'ha-manager groupconfig'.
+# It looks for lines beginning with "group:" and extracts the second word.
+get_groups() {
+  ha-manager groupconfig 2>/dev/null | grep -E '^group:' | awk '{print $2}'
+}
+# ---------------------------------------------------------------------------
+
+# ---- Function: get_vms_with_hostpci -----------------------------------------
+# Scan each VM configuration under /etc/pve/nodes/*/qemu-server for the
+# "hostpci" option. VMs that define this directive rely on PCI passthrough and
+# should remain on the node that provides the hardware. The function extracts
+# the VMID from every matching configuration file and outputs a unique,
+# sorted list of those IDs.
 get_vms_with_hostpci() {
   grep -Rl hostpci /etc/pve/nodes/*/qemu-server/*.conf 2>/dev/null | \
     sed -E 's#.*/([0-9]+)\.conf#\1#' | sort -u
@@ -28,7 +36,7 @@ command -v jq >/dev/null 2>&1 || {
 }
 
 # 2) Ensure HA group exists (or create it as a restricted group on GROUP_NODES)
-if ! ha-manager group config "$GROUP" &>/dev/null; then
+if ! get_groups | grep -qw "$GROUP"; then
   echo "Group '$GROUP' does not exist. Creating restricted group on nodes: $GROUP_NODES"
   ha-manager groupadd "$GROUP" \
     --nodes "$GROUP_NODES" \
@@ -74,4 +82,3 @@ pvesh get /cluster/resources --type vm --output-format=json | \
       ha-manager add "$sid" --state started --group "$GROUP" \
         --comment "HA ${VMID} on $GROUP_NODES"
   done
-

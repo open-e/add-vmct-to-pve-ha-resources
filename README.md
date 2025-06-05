@@ -1,4 +1,4 @@
-# add-vmct-to-pve-ha-resources
+# Add VM/CT to Proxmox VE HA-resources
 Adds all virtual machines (VMs) and containers (CTs) in a Proxmox cluster to an HA group
 
 This repository contains a helper script that adds all virtual machines (VMs)

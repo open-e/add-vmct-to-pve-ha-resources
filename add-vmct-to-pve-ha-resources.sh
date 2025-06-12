@@ -3,7 +3,7 @@
 set -euo pipefail
 
 # ---- Configuration ---------------------------------------------------------
-GROUP="powernodes"
+GROUP="ha-nodes"
 GROUP_NODES=("pve1" "pve2")  # Define as array for future flexibility
 # ---------------------------------------------------------------------------
 

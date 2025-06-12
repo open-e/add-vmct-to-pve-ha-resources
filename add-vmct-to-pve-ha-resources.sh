@@ -7,9 +7,6 @@ GROUP="ha-nodes"
 GROUP_NODES=("pve1" "pve2")  # Define as array for future flexibility
 # ---------------------------------------------------------------------------
 
-# Optional: enable persistent logging
-# exec > >(tee -a /var/log/add-ha-resources.log) 2>&1
-
 # ---- Function: log ---------------------------------------------------------
 log() {
   echo "[$(date +%H:%M:%S)] $*"
@@ -29,20 +26,7 @@ get_vms_with_hostpci() {
 }
 # ---------------------------------------------------------------------------
 
-# ---- Function: get_cluster_resources ---------------------------------------
-get_cluster_resources() {
-  pvesh get /cluster/resources --type vm --output-format=json
-}
-# ---------------------------------------------------------------------------
-
-# 1) Ensure jq is installed
-command -v jq >/dev/null 2>&1 || {
-  log "jq not found, installing..."
-  apt update && apt install -y jq
-  clear
-}
-
-# 2) Ensure HA group exists
+# 1) Ensure HA group exists
 NODES_CSV=$(IFS=, ; echo "${GROUP_NODES[*]}")
 if ! get_groups | grep -qw "$GROUP"; then
   log "Group '$GROUP' does not exist. Creating restricted group on nodes: $NODES_CSV"
@@ -52,7 +36,7 @@ if ! get_groups | grep -qw "$GROUP"; then
     --comment "Auto-created by add-vmct-to-pve-ha-resources.sh"
 fi
 
-# 3) Collect VMIDs using PCI passthrough
+# 2) Collect VMIDs using PCI passthrough
 readarray -t HOSTPCI_VMS < <(get_vms_with_hostpci)
 
 log "This script will add all VMs and CTs to the HA group '$GROUP'"
@@ -61,12 +45,17 @@ log "Target HA nodes: $NODES_CSV"
 read -n 1 -s -r -p "Press any key to continue or Ctrl-C to exit..." _
 echo
 
-# 4) Process and add resources
-get_cluster_resources | jq -r '
-  .[]
-  | select(.type=="qemu" or .type=="lxc")
-  | (if .type=="qemu" then "vm:" else "ct:" end) + (.vmid | tostring)
-' | while read -r sid; do
+# 3) Process and add resources
+pvesh get /cluster/resources --type vm --output-format=json | \
+python3 -c "
+import sys, json
+mapping = {'qemu': 'vm', 'lxc': 'ct'}
+print('\n'.join(
+    f\"{mapping[o['type']]}:{o['vmid']}\"
+    for o in json.load(sys.stdin)
+    if o['type'] in mapping
+))
+" | while read -r sid; do
   TYPE=${sid%%:*}
   VMID=${sid#*:}
 

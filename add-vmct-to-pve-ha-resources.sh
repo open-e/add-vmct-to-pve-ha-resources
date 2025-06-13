@@ -1,6 +1,6 @@
 #!/bin/bash
 
-set -euo pipefail
+# set -euo pipefail
 
 # ---- Configuration ---------------------------------------------------------
 GROUP="ha-nodes"
